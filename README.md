@@ -1,8 +1,6 @@
 # URL Builder Variable for Google Tag Manager Server Container
 
-## How to use URL Builder Variable
-
-TBD
+URL Builder Variable can help you to quickly add needed query parameters to the URL.
 
 ## Open Source
 
