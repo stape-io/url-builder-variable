@@ -68,26 +68,48 @@ ___SANDBOXED_JS_FOR_SERVER___
 
 const encodeUriComponent = require('encodeUriComponent');
 
-let urlParams = '';
 let url = data.url;
+// Parse the URL to check for existing query parameters
+let urlParts = url.split('?');
+let baseUrl = urlParts[0];
+let existingParams = {};
 
-for (let key in data.url_data) {
-  if (urlParams) {
-    urlParams = urlParams + '&' + enc(data.url_data[key].key) + '=' + enc(data.url_data[key].value);
-  } else {
-    urlParams = enc(data.url_data[key].key) + '=' + enc(data.url_data[key].value);
+// Parse existing query parameters if any
+if (urlParts.length > 1) {
+  let paramPairs = urlParts[1].split('&');
+  for (let i = 0; i < paramPairs.length; i++) {
+    let pair = paramPairs[i].split('=');
+    if (pair.length === 2) {
+      existingParams[pair[0]] = pair[1];
+    }
   }
 }
 
-if (urlParams) {
-  url = url + '?' + urlParams;
+// Process new parameters, updating existing ones if needed
+for (let key in data.url_data) {
+  existingParams[enc(data.url_data[key].key)] = enc(data.url_data[key].value);
+}
+
+// Build the final URL with all parameters
+let finalParams = '';
+for (let key in existingParams) {
+  if (finalParams) {
+    finalParams = finalParams + '&' + key + '=' + existingParams[key];
+  } else {
+    finalParams = key + '=' + existingParams[key];
+  }
+}
+
+// Construct the final URL
+if (finalParams) {
+  url = baseUrl + '?' + finalParams;
 }
 
 return url;
   
 function enc(data) {
-    data = data || '';
-    return encodeUriComponent(data);
+  data = data || '';
+  return encodeUriComponent(data);
 }
 
 
