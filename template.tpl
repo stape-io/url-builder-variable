@@ -66,47 +66,38 @@ ___TEMPLATE_PARAMETERS___
 
 ___SANDBOXED_JS_FOR_SERVER___
 
+const parseUrl = require('parseUrl');
+const makeTableMap = require('makeTableMap');
 const encodeUriComponent = require('encodeUriComponent');
+const decodeUriComponent = require('decodeUriComponent');
+const getType = require('getType');
 
-let url = data.url;
 // Parse the URL to check for existing query parameters
-let urlParts = url.split('?');
-let baseUrl = urlParts[0];
-let existingParams = {};
-
+const parsedUrl = parseUrl(data.url);
+const baseUrl = parsedUrl.origin + parsedUrl.pathname;
+const hash = parsedUrl.hash;
 // Parse existing query parameters if any
-if (urlParts.length > 1) {
-  let paramPairs = urlParts[1].split('&');
-  for (let i = 0; i < paramPairs.length; i++) {
-    let pair = paramPairs[i].split('=');
-    if (pair.length === 2) {
-      existingParams[pair[0]] = pair[1];
-    }
-  }
-}
+const searchParams = parsedUrl.searchParams; // Uses decoded keys and values.
 
 // Process new parameters, updating existing ones if needed
-for (let key in data.url_data) {
-  existingParams[enc(data.url_data[key].key)] = enc(data.url_data[key].value);
+const newParams = makeTableMap(data.url_data || [], 'key', 'value');
+for (const key in newParams) {
+  const newKey = decodeUriComponent(key); // If the person added it either decoded or encoded in the UI.
+  const newValue = newParams[key];
+  searchParams[newKey] = newValue; // newKey and newValue don't need to be encoded now. They will be encoded later.
+}
+
+const finalParams = [];
+for (const key in searchParams) {
+  const value = searchParams[key];
+  getType(value) === 'array' // For parameters that are repeated.
+    ? value.forEach((v) => finalParams.push(enc(key) + '=' + enc(v)))
+    : finalParams.push(enc(key) + '=' + enc(value));
 }
 
 // Build the final URL with all parameters
-let finalParams = '';
-for (let key in existingParams) {
-  if (finalParams) {
-    finalParams = finalParams + '&' + key + '=' + existingParams[key];
-  } else {
-    finalParams = key + '=' + existingParams[key];
-  }
-}
+return baseUrl + (finalParams.length ? '?' + finalParams.join('&') : '') + hash;
 
-// Construct the final URL
-if (finalParams) {
-  url = baseUrl + '?' + finalParams;
-}
-
-return url;
-  
 function enc(data) {
   data = data || '';
   return encodeUriComponent(data);
@@ -115,7 +106,40 @@ function enc(data) {
 
 ___TESTS___
 
-scenarios: []
+scenarios:
+- name: URL without parameters
+  code: |-
+    const expectedValue = 'https://example.com/path/?this=that&foo=bar#hash';
+    const mockData = {
+      url: page_location_without_query_params,
+      url_data: [
+        { key: 'this', value: 'that' },
+        { key: 'foo', value: 'bar' },
+      ]
+    };
+
+    const variableResult = runCode(mockData);
+
+    assertThat(variableResult).isEqualTo(expectedValue);
+- name: URL with parameters
+  code: |-
+    const expectedValue = 'https://example.com/path/?oneparam=1%202%203%204&teste=123&anotherparam=hahsdhasd&anotherparam=duplicated&par%C3%A2metro=test%C3%A3o&t%C3%A9%C3%A7=foobar&this=that&foo=bar#hash';
+    const mockData = {
+      url: page_location_with_query_params,
+      url_data: [
+        { key: 'this', value: 'that' },
+        { key: 'foo', value: 'bar' },
+        { key: 'par%C3%A2metro', value: 'testão' },
+        { key: 'téç', value: 'foobar' }
+      ]
+    };
+
+    const variableResult = runCode(mockData);
+
+    assertThat(variableResult).isEqualTo(expectedValue);
+setup: |-
+  const page_location_without_query_params = 'https://example.com/path/#hash';
+  const page_location_with_query_params = 'https://example.com/path/?oneparam=1%202%203%204&teste=123&anotherparam=hahsdhasd&par%C3%A2metro=%C3%A7%C3%A3o%3F1J23I12I3J&anotherparam=duplicated&t%C3%A9%C3%A7=foobar#hash';
 
 
 ___NOTES___
