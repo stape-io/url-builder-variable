@@ -19,3 +19,6 @@ The **URL Builder Variable** for Google Tag Manager Server Container allows you 
 ## Open Source
 
 The **URL Builder Variable** for GTM Server is developed and maintained by the [Stape Team](https://stape.io/) under the Apache 2.0 license.
+
+### GTM Gallery Status
+🟢 [Listed](https://tagmanager.google.com/gallery/#/owners/stape-io/templates/url-builder-variable)
